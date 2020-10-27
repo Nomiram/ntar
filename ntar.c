@@ -10,13 +10,15 @@
 #include <unistd.h>
 #define MAX_BUF_SIZE 255
 #define MAX_PATH_SIZE 255
-#define NAME_SIZE 10
+#define NAME_SIZE 15
 #define META_SIZE 10
 #define T_IS_FILE 1
 #define T_IS_FOLDER 2
+int readFolder(char* ndir, int fout);
 int writeFolder(char* ndir, int fout);
 int writeFileContent(int fd, int fo);//return count of bytes written 
 short getFileSize(int file);//2 Bytes
+int UnpackArchive(char* ndir, char* arch);
 int CreateArchive(char* ndir, char* arch);
 /*
       file .ntar format (ntar1.0)
@@ -29,21 +31,31 @@ RECLVL-level of recursion(вложенность)
 
 int main(int argc, char* argv[])
 {
-int fout;
-char WorkDir [MAX_PATH_SIZE]={0};
-char CurDir [MAX_PATH_SIZE]={0};
-int fin;
-struct dirent *file;
-DIR* dir;
-char* fileinname[NAME_SIZE]={0};
-char* fileoutname[NAME_SIZE]={0};
-char meta[META_SIZE]="ntar1.0";
+//int fout;
+//char WorkDir [MAX_PATH_SIZE]={0};
+//char CurDir [MAX_PATH_SIZE]={0};
+//int fin;
+//struct dirent *file;
+//DIR* dir;
+//char* fileinname[NAME_SIZE]={0};
+//char* fileoutname[NAME_SIZE]={0};
+//char meta[META_SIZE]="ntar1.0";
 
 struct dirent* CurFile;
 if( argc > 1 ){
-CreateArchive(argv[1],"re.ntar");
+    if(strcmp(argv[1],"-h")==0){
+        printf("ntar - an archiving utility\n\
+        usage: ntar c FOLDER ARCHIVE - create archive\n\
+               ntar x FOLDER ARCHIVE - extract files from an archive\n");
+    }
+    else if((strcmp(argv[1],"c")==0)&&(argc > 2))
+        CreateArchive(argv[2],argv[3]);
+    else if((strcmp(argv[1],"x")==0)&&(argc > 2))
+        UnpackArchive(argv[2],argv[3]);
+    else printf("ntar -h for get help\n");
 }
-
+    else
+printf("ntar -h for get help\n");
 return 0;
 }
 short getFileSize(int file){
@@ -106,7 +118,7 @@ int writeFolder(char* ndir, int fout){
         struct stat filestat;
         stat(file->d_name, &filestat);
         printf("\t%10s\t%x\t%ld\n",file->d_name, filestat.st_mode, filestat.st_size);
-        if(S_ISDIR(filestat.st_mode) && strcmp(file->d_name,".") && strcmp(file->d_name,"..")){
+        if(S_ISDIR(filestat.st_mode) && strcmp(file->d_name,".")!=0 && strcmp(file->d_name,"..")!=0){
             printf("is folder\n");
             RECLVL++;
             writeFolder(file->d_name,fout);
@@ -158,4 +170,108 @@ int writeFileContent(int fi, int fo){
 	//printf("%s\n", buffer);
     }
     return size;
+}
+/////////////////////////////////////////////////////
+int UnpackArchive(char* ndir, char* arch){
+   
+    int fout;
+    char META[META_SIZE]={0};//"ntar1.0";
+    int fin;
+    char* fileinname[NAME_SIZE]={0};
+    char* fileoutname[NAME_SIZE]={0};
+    struct dirent* CurFile;
+    //create .ntar file
+    if((fin=open(arch, O_RDONLY))==-1){
+    	printf("Cannot open file to write.\n");
+    	exit(1);
+    }
+    ///READ META
+    read(fin, META, 10);
+    if(strcmp(META,"ntar1.0")==0)
+    {printf("ntar1.0\n");
+        printf("archive file size = %i\n", getFileSize(fin));
+    }else
+    {
+        printf("file is not archive\n");
+    }
+    ///
+    readFolder(ndir,fin);
+close(fin);
+}
+int readFolder(char* ndir, int fout){
+    static char RECLVL=0;
+    char WorkDir [MAX_PATH_SIZE]={0};
+    char CurDir [MAX_PATH_SIZE]={0};
+    int fin;
+    struct dirent *file;
+    chdir(ndir);
+    getcwd(WorkDir,sizeof(WorkDir));
+    
+    char TYPE = 0;
+    while(read(fout, &TYPE, sizeof(TYPE))){
+    if(TYPE==T_IS_FOLDER){
+    char newRECLVL={0};
+    read(fout, &newRECLVL, sizeof(RECLVL));    
+    while(newRECLVL>RECLVL){
+        chdir("..");
+    }
+    read(fout, writefoldername, NAME_SIZE);
+    int fdd = mkdir(writefoldername,00666);
+    RECLVL++;
+    chdir(writefoldername);
+    }
+    if(TYPE==T_IS_FILE){
+        char newRECLVL={0};
+    read(fout, &newRECLVL, sizeof(RECLVL));    
+    while(newRECLVL>RECLVL){
+        chdir("..");
+    }
+    read(fout, writefileername, NAME_SIZE);
+    if((fout = creat(writefileername,00666))==-1) {
+	printf("Cannot open file to write.\n");
+    exit(1);
+    }
+    //todo 
+    read(fout,writefilesize , sizeof(short));
+    short size = atoi(writefilesize);
+    //todo while
+        
+
+    }
+    }
+    //while (file = readdir(dir)) {
+    //    struct stat filestat;
+    //    stat(file->d_name, &filestat);
+    //    printf("\t%10s\t%x\t%ld\n",file->d_name, filestat.st_mode, filestat.st_size);
+    //    if(S_ISDIR(filestat.st_mode) && strcmp(file->d_name,".") && strcmp(file->d_name,"..")){
+    //        printf("is folder\n");
+    //        RECLVL++;
+    //        writeFolder(file->d_name,fout);
+    //        chdir("..");
+    //        RECLVL--;
+    //        continue;
+    //    }
+    //    if(S_ISREG(filestat.st_mode)){
+    //    if((fin=open(file->d_name, O_RDONLY))!=-1) {
+    //        printf("file size = %i\n", getFileSize(fin));
+    //        ///WRITE FILE
+    //        char TYPE = T_IS_FILE;
+    //        char writefilename [NAME_SIZE] = {0};
+    //        char *tempfilename;
+    //        char writefilesize [2] = {0};
+    //        short tempsize=getFileSize(fin);
+    //        memmove(writefilename, file->d_name, (strlen(file->d_name)<NAME_SIZE?strlen(file->d_name):NAME_SIZE));
+    //        memmove(writefilesize,&(tempsize) , sizeof(short));
+    //        lseek(fout, 0, SEEK_END);
+    //        write(fout, &TYPE, sizeof(TYPE));
+    //        write(fout, &RECLVL, sizeof(RECLVL));
+    //        write(fout, writefilename, NAME_SIZE);
+    //        write(fout,writefilesize , sizeof(short));
+    //        writeFileContent(fin,fout);
+    //        ///
+    //    }else{printf("Cannot open file. %s\n",file->d_name);}
+    //    }
+    //}
+    //closedir(dir);
+    //close(fin);
 }
