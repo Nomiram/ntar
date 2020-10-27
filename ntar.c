@@ -14,7 +14,7 @@
 #define META_SIZE 10
 #define T_IS_FILE 1
 #define T_IS_FOLDER 2
-//int writeFile(int fi, int fo);
+int writeFolder(char* ndir, int fout);
 int writeFileContent(int fd, int fo);//return count of bytes written 
 short getFileSize(int file);//2 Bytes
 int CreateArchive(char* ndir, char* arch);
@@ -27,15 +27,16 @@ bytes  10        1    50   2    SIZE          1    50
 
 int main(int argc, char* argv[])
 {
+int fout;
 char WorkDir [MAX_PATH_SIZE]={0};
 char CurDir [MAX_PATH_SIZE]={0};
 int fin;
-int fout;
-char meta[META_SIZE]="ntar1.0";
 struct dirent *file;
+DIR* dir;
 char* fileinname[NAME_SIZE]={0};
 char* fileoutname[NAME_SIZE]={0};
-DIR* dir;
+char meta[META_SIZE]="ntar1.0";
+
 struct dirent* CurFile;
 if( argc > 1 ){
 CreateArchive(argv[1],"re.ntar");
@@ -53,15 +54,12 @@ short getFileSize(int file){
 	return size;
 }
 int CreateArchive(char* ndir, char* arch){
-    char WorkDir [MAX_PATH_SIZE]={0};
-    char CurDir [MAX_PATH_SIZE]={0};
-    int fin;
+   
     int fout;
     char META[META_SIZE]="ntar1.0";
-    struct dirent *file;
+    
     char* fileinname[NAME_SIZE]={0};
     char* fileoutname[NAME_SIZE]={0};
-    //DIR* dir;
     struct dirent* CurFile;
     //create .ntar file
 
@@ -69,18 +67,35 @@ int CreateArchive(char* ndir, char* arch){
     	printf("Cannot open file to write.\n");
     	exit(1);
     }
-    write(fout, META, META_SIZE);//WRITE META
+    ///WRITE META
+    write(fout, META, META_SIZE);
+    ///
+    writeFolder(ndir,fout);
+    printf("archive file size = %i\n", getFileSize(fout));
+close(fout);
+}
+int writeFolder(char* ndir, int fout){
+    char WorkDir [MAX_PATH_SIZE]={0};
+    char CurDir [MAX_PATH_SIZE]={0};
+    int fin;
+    struct dirent *file;
     getcwd(WorkDir,sizeof(WorkDir));
     chdir(ndir);
     getcwd(CurDir,sizeof(CurDir));
     DIR *dir = opendir(CurDir);
     if (dir == NULL)
         return 1;
+    //printf("%s",dir);
     while (file = readdir(dir)) {
         struct stat filestat;
-        lstat(file->d_name, &filestat);
-        //printf("%s\n",file->d_name);
+        stat(file->d_name, &filestat);
         printf("\t%10s\t%x\t%ld\n",file->d_name, filestat.st_mode, filestat.st_size);
+        if(S_ISDIR(filestat.st_mode)&&strcmp(file->d_name,".")&&strcmp(file->d_name,"..")){
+        printf("is folder\n");
+            writeFolder(file->d_name,fout);
+            chdir("..");
+            continue;
+        }
         if(S_ISREG(filestat.st_mode)){
         if((fin=open(file->d_name, O_RDONLY))!=-1) {
             printf("file size = %i\n", getFileSize(fin));
@@ -102,9 +117,7 @@ int CreateArchive(char* ndir, char* arch){
         }
     }
     closedir(dir);
-printf("archive file size = %i\n", getFileSize(fout));
-close(fin);
-close(fout);
+    close(fin);
 }
 int writeFile(int fi,int fo){
     char filename [NAME_SIZE] = {0};
