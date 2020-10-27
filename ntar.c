@@ -10,7 +10,7 @@
 #include <unistd.h>
 #define MAX_BUF_SIZE 255
 #define MAX_PATH_SIZE 255
-#define NAME_SIZE 50
+#define NAME_SIZE 10
 #define META_SIZE 10
 #define T_IS_FILE 1
 #define T_IS_FOLDER 2
@@ -20,9 +20,11 @@ short getFileSize(int file);//2 Bytes
 int CreateArchive(char* ndir, char* arch);
 /*
       file .ntar format (ntar1.0)
-                FILE                         FOLDER
-bytes  10        1    50   2    SIZE          1    50
-      META|... |TYPE|NAME|SIZE|CONTENT|...  |TYPE|NAME|...
+                FILE                                   FOLDER
+bytes  10        1     1     50   2    SIZE          1     1     50
+      META|... |TYPE|RECLVL|NAME|SIZE|CONTENT|...  |TYPE|RECLVL|NAME|...
+         2   
+RECLVL-level of recursion(вложенность)
 */
 
 int main(int argc, char* argv[])
@@ -75,6 +77,7 @@ int CreateArchive(char* ndir, char* arch){
 close(fout);
 }
 int writeFolder(char* ndir, int fout){
+    static char RECLVL=0;
     char WorkDir [MAX_PATH_SIZE]={0};
     char CurDir [MAX_PATH_SIZE]={0};
     int fin;
@@ -85,15 +88,30 @@ int writeFolder(char* ndir, int fout){
     DIR *dir = opendir(CurDir);
     if (dir == NULL)
         return 1;
-    //printf("%s",dir);
+    ///WRITE FOLDER
+    struct stat folderstat;
+    stat(CurDir, &folderstat);
+    char TYPE = T_IS_FOLDER;
+    char* foldername=strrchr(CurDir,'/');
+    if(foldername==NULL){
+    char* foldername=strrchr(CurDir,'\\');    
+    }
+    char writefoldername [NAME_SIZE] = {0};
+    memmove(writefoldername, foldername+1, (strlen(foldername+1)<NAME_SIZE?strlen(foldername+1):NAME_SIZE));
+    write(fout, &TYPE, sizeof(TYPE));
+    write(fout, &RECLVL, sizeof(RECLVL));
+    write(fout, writefoldername, NAME_SIZE);
+    ///
     while (file = readdir(dir)) {
         struct stat filestat;
         stat(file->d_name, &filestat);
         printf("\t%10s\t%x\t%ld\n",file->d_name, filestat.st_mode, filestat.st_size);
-        if(S_ISDIR(filestat.st_mode)&&strcmp(file->d_name,".")&&strcmp(file->d_name,"..")){
-        printf("is folder\n");
+        if(S_ISDIR(filestat.st_mode) && strcmp(file->d_name,".") && strcmp(file->d_name,"..")){
+            printf("is folder\n");
+            RECLVL++;
             writeFolder(file->d_name,fout);
             chdir("..");
+            RECLVL--;
             continue;
         }
         if(S_ISREG(filestat.st_mode)){
@@ -109,6 +127,7 @@ int writeFolder(char* ndir, int fout){
             memmove(writefilesize,&(tempsize) , sizeof(short));
             lseek(fout, 0, SEEK_END);
             write(fout, &TYPE, sizeof(TYPE));
+            write(fout, &RECLVL, sizeof(RECLVL));
             write(fout, writefilename, NAME_SIZE);
             write(fout,writefilesize , sizeof(short));
             writeFileContent(fin,fout);
