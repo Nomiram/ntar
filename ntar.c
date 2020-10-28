@@ -199,45 +199,90 @@ int UnpackArchive(char* ndir, char* arch){
 close(fin);
 }
 int readFolder(char* ndir, int fout){
-    static char RECLVL=0;
+    static char RECLVL=-1;
     char WorkDir [MAX_PATH_SIZE]={0};
     char CurDir [MAX_PATH_SIZE]={0};
     int fin;
     struct dirent *file;
     chdir(ndir);
     getcwd(WorkDir,sizeof(WorkDir));
-    
+    printf("%s\n",WorkDir);
     char TYPE = 0;
     while(read(fout, &TYPE, sizeof(TYPE))){
-    if(TYPE==T_IS_FOLDER){
-    char newRECLVL={0};
-    read(fout, &newRECLVL, sizeof(RECLVL));    
-    while(newRECLVL>RECLVL){
-        chdir("..");
-    }
-    read(fout, writefoldername, NAME_SIZE);
-    int fdd = mkdir(writefoldername,00666);
-    RECLVL++;
-    chdir(writefoldername);
-    }
-    if(TYPE==T_IS_FILE){
+        printf("DIR\n");
+        getcwd(CurDir,sizeof(CurDir));
+        printf("Curdir %s\n",CurDir);
+        if(TYPE==T_IS_FOLDER){
         char newRECLVL={0};
-    read(fout, &newRECLVL, sizeof(RECLVL));    
-    while(newRECLVL>RECLVL){
-        chdir("..");
-    }
-    read(fout, writefileername, NAME_SIZE);
-    if((fout = creat(writefileername,00666))==-1) {
-	printf("Cannot open file to write.\n");
-    exit(1);
-    }
-    //todo 
-    read(fout,writefilesize , sizeof(short));
-    short size = atoi(writefilesize);
-    //todo while
+        char writefoldername [NAME_SIZE] = {0};
+        read(fout, &newRECLVL, sizeof(RECLVL));    
+        //while(newRECLVL<RECLVL){
+        //    chdir("..");
+        //    printf("..");
+        //    newRECLVL--;
+        //}
+        read(fout, writefoldername, NAME_SIZE);
+        printf("%s\n", writefoldername);
+        if(mkdir(writefoldername,(0777))!=0){
+            printf("err create dir %s\n",strerror(errno));
+        }
+        sleep(1);
+        RECLVL++;
+            strcat(CurDir,"/");
+            strcat(CurDir,writefoldername);
+            printf("CD %s\n",CurDir);
+        printf("chdir %d\n",chdir(CurDir));
+        continue;
+        }
+        if(TYPE==T_IS_FILE){
+            printf("FILE\n");
+            char newRECLVL={0};
+            char writefilename [NAME_SIZE] = {0};
+            char writefilesize [2] = {0};
+        read(fout, &newRECLVL, sizeof(RECLVL));  
+        printf("REC %d %d \n",newRECLVL, RECLVL);
+        while(newRECLVL<RECLVL){
+            chdir("..");
+            printf("DIRCHANGED\n");
+            RECLVL--;
+            getcwd(CurDir,sizeof(CurDir));
+            printf("%s\n",CurDir);
+        }
         
-
+            read(fout, writefilename, NAME_SIZE);
+        printf("fn %s\n",writefilename);
+        strcat(CurDir,"/");
+        strcat(CurDir,writefilename);
+        printf("CD %s\n",CurDir);
+        if((fin = creat(CurDir,00666))==-1) {
+	    printf("Cannot open file to write. %s\n",strerror(errno));
+        exit(1);
+        }
+        //todo 
+        read(fout,writefilesize , sizeof(short));
+            printf("sizef %s\n",writefilesize);
+        short size = 0;
+           memmove(&(size),writefilesize , sizeof(short));
+        //todo while
+        printf("size %d",size);
+        char buffer[MAX_BUF_SIZE] = {0};
+    //int size = 0;
+    //lseek(fo, 0, SEEK_END);
+	int count = size;
+	int cnt = size;
+    while(count){
+    cnt = read(fout, buffer, MAX_BUF_SIZE<count?MAX_BUF_SIZE:count);
+	if (cnt == 0)
+	{
+        printf ("Possible read error.\n");
+	    exit(1);
+	}
+    printf("%s",buffer);
+    count-=cnt;    
+	write(fin, buffer, cnt);
+	//printf("%s\n", buffer);
     }
+        }
     }
     //while (file = readdir(dir)) {
     //    struct stat filestat;
@@ -256,7 +301,7 @@ int readFolder(char* ndir, int fout){
     //        printf("file size = %i\n", getFileSize(fin));
     //        ///WRITE FILE
     //        char TYPE = T_IS_FILE;
-    //        char writefilename [NAME_SIZE] = {0};
+    //        
     //        char *tempfilename;
     //        char writefilesize [2] = {0};
     //        short tempsize=getFileSize(fin);
