@@ -31,16 +31,6 @@ RECLVL-level of recursion(вложенность)
 
 int main(int argc, char* argv[])
 {
-//int fout;
-//char WorkDir [MAX_PATH_SIZE]={0};
-//char CurDir [MAX_PATH_SIZE]={0};
-//int fin;
-//struct dirent *file;
-//DIR* dir;
-//char* fileinname[NAME_SIZE]={0};
-//char* fileoutname[NAME_SIZE]={0};
-//char meta[META_SIZE]="ntar1.0";
-
 struct dirent* CurFile;
 if( argc > 1 ){
     if(strcmp(argv[1],"-h")==0){
@@ -215,12 +205,15 @@ int readFolder(char* ndir, int fout){
         if(TYPE==T_IS_FOLDER){
         char newRECLVL={0};
         char writefoldername [NAME_SIZE] = {0};
-        read(fout, &newRECLVL, sizeof(RECLVL));    
-        //while(newRECLVL<RECLVL){
-        //    chdir("..");
-        //    printf("..");
-        //    newRECLVL--;
-        //}
+        read(fout, &newRECLVL, sizeof(RECLVL));   
+        printf("REC %d %d \n",newRECLVL, RECLVL);
+       while(newRECLVL<RECLVL){
+            chdir("..");
+            printf("DIRCHANGED\n");
+            RECLVL--;
+            getcwd(CurDir,sizeof(CurDir));
+            ///printf("%s\n",CurDir);
+        }
         read(fout, writefoldername, NAME_SIZE);
         printf("%s\n", writefoldername);
         if(mkdir(writefoldername,(0777))!=0){
@@ -246,11 +239,11 @@ int readFolder(char* ndir, int fout){
             printf("DIRCHANGED\n");
             RECLVL--;
             getcwd(CurDir,sizeof(CurDir));
-            printf("%s\n",CurDir);
+            ///printf("%s\n",CurDir);
         }
         
             read(fout, writefilename, NAME_SIZE);
-        printf("fn %s\n",writefilename);
+        printf("file %s\n",writefilename);
         strcat(CurDir,"/");
         strcat(CurDir,writefilename);
         printf("CD %s\n",CurDir);
@@ -260,11 +253,11 @@ int readFolder(char* ndir, int fout){
         }
         //todo 
         read(fout,writefilesize , sizeof(short));
-            printf("sizef %s\n",writefilesize);
+            //printf("sizef %s\n",writefilesize);
         short size = 0;
            memmove(&(size),writefilesize , sizeof(short));
         //todo while
-        printf("size %d",size);
+        printf("size %d\n",size);
         char buffer[MAX_BUF_SIZE] = {0};
     //int size = 0;
     //lseek(fo, 0, SEEK_END);
@@ -277,46 +270,11 @@ int readFolder(char* ndir, int fout){
         printf ("Possible read error.\n");
 	    exit(1);
 	}
-    printf("%s",buffer);
+    //printf("%s",buffer);
     count-=cnt;    
 	write(fin, buffer, cnt);
 	//printf("%s\n", buffer);
     }
         }
     }
-    //while (file = readdir(dir)) {
-    //    struct stat filestat;
-    //    stat(file->d_name, &filestat);
-    //    printf("\t%10s\t%x\t%ld\n",file->d_name, filestat.st_mode, filestat.st_size);
-    //    if(S_ISDIR(filestat.st_mode) && strcmp(file->d_name,".") && strcmp(file->d_name,"..")){
-    //        printf("is folder\n");
-    //        RECLVL++;
-    //        writeFolder(file->d_name,fout);
-    //        chdir("..");
-    //        RECLVL--;
-    //        continue;
-    //    }
-    //    if(S_ISREG(filestat.st_mode)){
-    //    if((fin=open(file->d_name, O_RDONLY))!=-1) {
-    //        printf("file size = %i\n", getFileSize(fin));
-    //        ///WRITE FILE
-    //        char TYPE = T_IS_FILE;
-    //        
-    //        char *tempfilename;
-    //        char writefilesize [2] = {0};
-    //        short tempsize=getFileSize(fin);
-    //        memmove(writefilename, file->d_name, (strlen(file->d_name)<NAME_SIZE?strlen(file->d_name):NAME_SIZE));
-    //        memmove(writefilesize,&(tempsize) , sizeof(short));
-    //        lseek(fout, 0, SEEK_END);
-    //        write(fout, &TYPE, sizeof(TYPE));
-    //        write(fout, &RECLVL, sizeof(RECLVL));
-    //        write(fout, writefilename, NAME_SIZE);
-    //        write(fout,writefilesize , sizeof(short));
-    //        writeFileContent(fin,fout);
-    //        ///
-    //    }else{printf("Cannot open file. %s\n",file->d_name);}
-    //    }
-    //}
-    //closedir(dir);
-    //close(fin);
 }
