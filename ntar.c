@@ -10,7 +10,7 @@
 #include <unistd.h>
 #define MAX_BUF_SIZE 255
 #define MAX_PATH_SIZE 255
-#define NAME_SIZE 15
+#define NAME_SIZE 50
 #define META_SIZE 10
 #define T_IS_FILE 1
 #define T_IS_FOLDER 2
@@ -25,7 +25,7 @@ int CreateArchive(char* ndir, char* arch);
                 FILE                                   FOLDER
 bytes  10        1     1     50   2    SIZE          1     1     50
       META|... |TYPE|RECLVL|NAME|SIZE|CONTENT|...  |TYPE|RECLVL|NAME|...
-         2   
+         2
 RECLVL-level of recursion(вложенность)
 */
 
@@ -109,7 +109,7 @@ int writeFolder(char* ndir, int fout){
         stat(file->d_name, &filestat);
         printf("\t%10s\t%x\t%ld\n",file->d_name, filestat.st_mode, filestat.st_size);
         if(S_ISDIR(filestat.st_mode) && strcmp(file->d_name,".")!=0 && strcmp(file->d_name,"..")!=0){
-            printf("is folder\n");
+            //printf("is folder\n");
             RECLVL++;
             writeFolder(file->d_name,fout);
             chdir("..");
@@ -199,17 +199,17 @@ int readFolder(char* ndir, int fout){
     printf("%s\n",WorkDir);
     char TYPE = 0;
     while(read(fout, &TYPE, sizeof(TYPE))){
-        printf("DIR\n");
+        //printf("DIR\n");
         getcwd(CurDir,sizeof(CurDir));
-        printf("Curdir %s\n",CurDir);
+        //printf("Curdir %s\n",CurDir);
         if(TYPE==T_IS_FOLDER){
         char newRECLVL={0};
         char writefoldername [NAME_SIZE] = {0};
         read(fout, &newRECLVL, sizeof(RECLVL));   
-        printf("REC %d %d \n",newRECLVL, RECLVL);
+        //printf("REC %d %d \n",newRECLVL, RECLVL);
        while(newRECLVL<RECLVL){
             chdir("..");
-            printf("DIRCHANGED\n");
+            //printf("DIRCHANGED\n");
             RECLVL--;
             getcwd(CurDir,sizeof(CurDir));
             ///printf("%s\n",CurDir);
@@ -223,20 +223,21 @@ int readFolder(char* ndir, int fout){
         RECLVL++;
             strcat(CurDir,"/");
             strcat(CurDir,writefoldername);
-            printf("CD %s\n",CurDir);
-        printf("chdir %d\n",chdir(CurDir));
+            //printf("CD %s\n",CurDir);
+			chdir(CurDir);
+        //printf("chdir %d\n",);
         continue;
         }
         if(TYPE==T_IS_FILE){
-            printf("FILE\n");
+            //printf("FILE\n");
             char newRECLVL={0};
             char writefilename [NAME_SIZE] = {0};
             char writefilesize [2] = {0};
         read(fout, &newRECLVL, sizeof(RECLVL));  
-        printf("REC %d %d \n",newRECLVL, RECLVL);
+        //printf("REC %d %d \n",newRECLVL, RECLVL);
         while(newRECLVL<RECLVL){
             chdir("..");
-            printf("DIRCHANGED\n");
+            //printf("DIRCHANGED\n");
             RECLVL--;
             getcwd(CurDir,sizeof(CurDir));
             ///printf("%s\n",CurDir);
@@ -246,7 +247,7 @@ int readFolder(char* ndir, int fout){
         printf("file %s\n",writefilename);
         strcat(CurDir,"/");
         strcat(CurDir,writefilename);
-        printf("CD %s\n",CurDir);
+        //printf("CD %s\n",CurDir);
         if((fin = creat(CurDir,00666))==-1) {
 	    printf("Cannot open file to write. %s\n",strerror(errno));
         exit(1);
@@ -277,4 +278,5 @@ int readFolder(char* ndir, int fout){
     }
         }
     }
+	close(fin);
 }
