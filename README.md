@@ -1,5 +1,6 @@
 # ntar
 nomiram tar - это попытка написания архиватора аналогичного tar
+
 Справка по формату файла .ntar:
       file .ntar format (ntar1.0)
                 FILE                                   FOLDER
